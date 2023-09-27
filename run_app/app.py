@@ -28,6 +28,7 @@ class ConsultTrainees:
 
         #Initialize webdriver
         self.options = webdriver.ChromeOptions()
+        self.options.add_argument("--window-size=700,450")
         prefs = {"download.default_directory" : f"{self.current_root_path}/procesar/"}
         self.options.add_experimental_option("prefs", prefs)
         self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=self.options)
@@ -70,9 +71,12 @@ class ConsultTrainees:
                 element.send_keys(password)
                 element = self.wait.until(EC.element_to_be_clickable((By.NAME, "ingresar")))
                 element.click()
+                print('Loggeo exitoso')
+                return True
             except Exception as err:
                 print("Error al intentar realizar logging", err)
                 print(traceback.format_exc())
+                return False
 
         except Exception as err:
             print(err)
@@ -81,14 +85,19 @@ class ConsultTrainees:
 
     def select_role(self):
         try:
+            self.driver.execute_script("return self.name || self.id")
             element = self.driver.find_element(By.XPATH, '//*[@id="seleccionRol:roles"]') 
             self.driver.execute_script("arguments[0].click();", element)
             element = self.wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="seleccionRol:roles"]/option[6]')))
             element.click()
         except Exception as err:
-            print(err)
-            print(traceback.format_exc())
-            print("Error al seleccionar rol")
+            try:
+                element = self.driver.find_element(By.XPATH, '//*[@id="j_id_jsp_1108549618_6:dtprogramacionesDeAmbiente:0:j_id_jsp_1108549618_10"]')
+                self.driver.execute_script("arguments[0].click();", element)
+            except Exception as err:
+                print("ERROR AL SELECCIONAR ROL")
+                print(err)
+                print(traceback.format_exc())           
 
 
     def obtain_fichas_a_descargar(self, 
