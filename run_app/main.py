@@ -2,28 +2,42 @@ import customtkinter
 import os
 from PIL import Image
 from app import ConsultTrainees
-import sys
+import sys, shutil
 from tkinter import Toplevel
+from tkinter import filedialog
+from tkinter import messagebox
+import subprocess
+from tkinter import StringVar
 
+class Redirector(object):
+    def __init__(self, text_widget):
+        """Constructor"""
+        self.output = text_widget
 
-class Redirector:
-    def __init__(self, widget):
-        self.widget = widget
+    def write(self, string):
+        """Add text to the end and scroll to the end"""
+        self.output.insert('end', string)
+        self.output.see('end')
+        self.output.update_idletasks()
 
-    def write(self, message):
-        self.widget.insert('end', message)
+    def flush(self):
+        pass
+
 
 class App(customtkinter.CTk):
     def __init__(self):
         super().__init__()
         
         self.title("Automatización RPA en el Centro de Comercios SENA")
-        self.geometry("1000x650")
+        self.geometry("700x550")
         self.current_root_path = os.getcwd()
         # set grid layout 1x2
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
         
+        self.file_path_entrada = None
+        self.filename = ""
+        self.path_consolidated = ""
 
         # load images with light and dark mode image
         image_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "test_images")
@@ -56,10 +70,6 @@ class App(customtkinter.CTk):
         self.home_frame = customtkinter.CTkFrame(self, corner_radius=0, fg_color="transparent")
         self.home_frame.grid_columnconfigure(0, weight=1)
         
-        # background_label = customtkinter.CTkLabel(self.home_frame, text='', image=self.background_image)
-        # background_label.place(x=0, y=0, relwidth=1, relheight=1)
-
-
         self.home_frame_large_image_label = customtkinter.CTkLabel(self.home_frame, text="Inicia Sesion en SofiaPlus", font=("Arial", 20, "bold"))
         self.home_frame_large_image_label.grid(row=0, column=0, padx=20, pady=10)
 
@@ -83,47 +93,83 @@ class App(customtkinter.CTk):
         self.home_frame_text = customtkinter.CTkTextbox(self.home_frame)
         self.home_frame_text.grid(row=6, column=0, padx=15, pady=5, sticky="ew")
 
-        # create second frame
-        self.second_frame = customtkinter.CTkFrame(self, corner_radius=0, fg_color="transparent")
-        #login
+
+        #frame upload
+
+        self.upload_frame = customtkinter.CTkFrame(self, corner_radius=0, fg_color="transparent")
+        self.upload_frame.grid_columnconfigure(0, weight=1)
+
+        self.upload_frame_large_process_label = customtkinter.CTkLabel(self.upload_frame, text="Cargue el archivo de entrada", font=("Arial", 20, "bold"))
+        self.upload_frame_large_process_label.grid(row=0, column=0, padx=20, pady=10)
+
+        self.upload_button = customtkinter.CTkButton(self.upload_frame, text="Cargar Archivo", command=self.open_file)
+        self.upload_button.grid(row=1, column=0, padx=20, pady=30, sticky="ew")
+
+        self.filename_var = StringVar()
+        self.filename_var.trace('w', self.update_label)
+        self.upload_frame_large_up_label = customtkinter.CTkLabel(self.upload_frame, textvariable=self.filename_var, font=("Arial", 15, "bold"))
+        self.upload_frame_large_up_label.grid(row=2, column=0, padx=15, pady=5)
+
+
+        self.upload_frame_button_4 = customtkinter.CTkButton(self.upload_frame, text="Iniciar proceso", compound="bottom", anchor="w",\
+                                                           command=lambda: self.report_trainees(self.entry_user.get(), self.entry_pass.get()))
+        self.upload_frame_button_4.grid(row=3, column=0, padx=20, pady=30)
+
+        self.upload_frame_text = customtkinter.CTkTextbox(self.upload_frame)
+        self.upload_frame_text.grid(row=4, column=0, padx=15, pady=5, sticky="ew")
+
+
+
+                #login
 
         self.login_frame = customtkinter.CTkFrame(self, corner_radius=0, fg_color="transparent")
+        self.login_frame.grid_columnconfigure(0, weight=1)
 
+        
         self.login_frame_large_proces_label = customtkinter.CTkLabel(self.login_frame, text="Seleccione proceso", font=("Arial", 20, "bold"))
         self.login_frame_large_proces_label.grid(row=0, column=0, padx=20, pady=10)
-
-        self.login_frame_large_file_label = customtkinter.CTkLabel(self.login_frame, text="Ruta carpeta entrada:", font=("Arial", 15, "bold"))
-        self.login_frame_large_file_label.grid(row=1, column=0, padx=15, pady=5)
-
-        self.login_frame_large_image_label = customtkinter.CTkLabel(self.login_frame, text=f"{self.current_root_path}/entrada", font=("Arial", 15))
-        self.login_frame_large_image_label.grid(row=2, column=0, padx=15, pady=5)
-
-        self.login_frame_large_file_label = customtkinter.CTkLabel(self.login_frame, text="Ruta carpeta procesar:", font=("Arial", 15, "bold"))
-        self.login_frame_large_file_label.grid(row=3, column=0, padx=15, pady=5)
-
-        self.login_frame_large_image_label = customtkinter.CTkLabel(self.login_frame, text=f"{self.current_root_path}/procesar", font=("Arial", 15))
-        self.login_frame_large_image_label.grid(row=4, column=0, padx=15, pady=5)
-
-        self.login_frame_large_file_label = customtkinter.CTkLabel(self.login_frame, text="Ruta carpeta entregables:", font=("Arial", 15, "bold"))
-        self.login_frame_large_file_label.grid(row=5, column=0, padx=15, pady=5)
-
-        self.login_frame_large_image_label = customtkinter.CTkLabel(self.login_frame, text=f"{self.current_root_path}/entregables", font=("Arial", 15))
-        self.login_frame_large_image_label.grid(row=6, column=0, padx=15, pady=5)
-
         # Create buttons
 
         self.login_frame_button_4 = customtkinter.CTkButton(self.login_frame, text="Reporte de Aprendices", compound="bottom", anchor="w",\
-                                                           command=lambda: self.report_trainees(self.entry_user.get(), self.entry_pass.get()))
-        self.login_frame_button_4.grid(row=7, column=0, padx=20, pady=30)
+                                                           command=self.upload_button_event)
+        self.login_frame_button_4.grid(row=1, column=0, padx=20, pady=30)
 
         self.login_frame_text = customtkinter.CTkTextbox(self.login_frame)
-        self.login_frame_text.grid(row=8, column=0, padx=15, pady=5, sticky="ew")
-        # create third frame
-        self.third_frame = customtkinter.CTkFrame(self, corner_radius=0, fg_color="transparent")
+        self.login_frame_text.grid(row=3, column=0, padx=20, pady=5, sticky="ew")
+
+
+        #Ver archivo
+
+        self.file_frame = customtkinter.CTkFrame(self, corner_radius=0, fg_color="transparent")
+        self.file_frame.grid_columnconfigure(0, weight=1)
+
+        self.file_frame_large_process_label = customtkinter.CTkLabel(self.file_frame, text="Consolidado Generado", font=("Arial", 20, "bold"))
+        self.file_frame_large_process_label.grid(row=0, column=0, padx=20, pady=10)
+
+        self.file_button = customtkinter.CTkButton(self.file_frame, text="Ver archivo", command=lambda: self.open_entregable(self.path_consolidated))
+        self.file_button.grid(row=1, column=0, padx=20, pady=30, sticky="ew")        
 
         # select default frame
         self.select_frame_by_name("home")
 
+
+    def open_file(self):
+        self.file_path_entrada = filedialog.askopenfilename()
+        self.filename = os.path.basename(self.file_path_entrada)
+        if self.file_path_entrada:
+            messagebox.showinfo('Archivo cargado', 'Archivo subido exitosamente')
+            destination = f"{self.current_root_path}/entrada"
+            shutil.copy(self.file_path_entrada, destination)
+            self.update_idletasks()
+        else:
+            messagebox.showinfo('No archivo seleccionado', 'Ningun archivo ha sido seleccionado')
+        self.filename_var.set(f"Archivo cargado: {self.filename}")
+
+    def open_entregable(self, path_to_start):
+        if os.name == 'nt':
+            os.startfile(f'{self.current_root_path}/entregables')
+        else:  # Unix
+            subprocess.call(['open', f'{self.current_root_path}/entregables'])
         
 
     def select_frame_by_name(self, name):
@@ -140,29 +186,37 @@ class App(customtkinter.CTk):
             self.login_frame.grid(row=0, column=1, sticky="nsew")
         else:
             self.login_frame.grid_forget()
-        if name == "frame_3":
-            self.third_frame.grid(row=0, column=1, sticky="nsew")
+        if name == "upload":
+            self.upload_frame.grid(row=0, column=1, sticky="nsew")
         else:
-            self.third_frame.grid_forget()
+            self.upload_frame.grid_forget()
+        if name == "file":
+            self.file_frame.grid(row=0, column=1, sticky="nsew")
+        else:
+            self.file_frame.grid_forget()
 
 
     def report_trainees(self, usuario, contrasena):
         old_stdout = sys.stdout
         old_stderr = sys.stderr
-        sys.stdout = Redirector(self.login_frame_text)
-        sys.stderr = Redirector(self.login_frame_text)
-        BotConsulta = ConsultTrainees()
-        BotConsulta.open_webdriver()
-        response_login = BotConsulta.login_process(user=usuario, password=contrasena)
-        BotConsulta.select_role()
-        list_fichas = BotConsulta.obtain_fichas_a_descargar()
-        final_download_files = BotConsulta.depurate_from_existing_files(list_fichas=list_fichas)
-        BotConsulta.download_files(final_download_files)
-        BotConsulta.modified_files()
-        BotConsulta.generate_consolidated_trainees()
-
-        sys.stdout = old_stdout
-        sys.stderr = old_stderr
+        sys.stdout = Redirector(self.upload_frame_text)
+        sys.stderr = Redirector(self.upload_frame_text)
+        try:
+            BotConsulta = ConsultTrainees()
+            BotConsulta.open_webdriver()
+            response_login = BotConsulta.login_process(user=usuario, password=contrasena)
+            BotConsulta.select_role()
+            list_fichas = BotConsulta.obtain_fichas_a_descargar(document_name=self.filename)
+            final_download_files = BotConsulta.depurate_from_existing_files(list_fichas=list_fichas)
+            BotConsulta.download_files(final_download_files)
+            BotConsulta.modified_files()
+            self.path_consolidated = BotConsulta.generate_consolidated_trainees()
+            if self.path_consolidated != False:
+                BotConsulta.delete_all_files_in_procesar(self.path_consolidated)
+                self.select_frame_by_name("file")
+        finally:
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
 
 
     def next_button(self, usuario, contrasena):
@@ -191,14 +245,20 @@ class App(customtkinter.CTk):
     def home_button_event(self):
         self.select_frame_by_name("home")
 
-    def frame_2_button_event(self):
-        self.select_frame_by_name("frame_2")
+    def upload_button_event(self):
+        self.select_frame_by_name("upload")
 
     def frame_3_button_event(self):
         self.select_frame_by_name("frame_3")
 
     def change_appearance_mode_event(self, new_appearance_mode):
         customtkinter.set_appearance_mode(new_appearance_mode)
+
+    def update_label(self, *args):
+        self.upload_frame_large_up_label.config(text=self.filename_var.get())
+
+
+
 
         
 

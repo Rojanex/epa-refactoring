@@ -1,4 +1,4 @@
-import os, re
+import os, re, sys
 from dotenv import load_dotenv
 from selenium import webdriver
 from webdriver_manager.chrome import ChromeDriverManager
@@ -11,6 +11,9 @@ import traceback
 import pandas as pd
 import time
 from openpyxl import Workbook, load_workbook
+from selenium.webdriver.chrome.options import Options
+from screeninfo import get_monitors
+from datetime import datetime
 
 load_dotenv()
 
@@ -22,13 +25,12 @@ class ConsultTrainees:
         self.current_root_path = os.getcwd()
         
         #Environ Variables
-        self.default_url = os.environ.get("DEFAULT_URL")
+        self.default_url = "http://senasofiaplus.edu.co/sofia-public/"
         self.default_user = os.environ.get("DEFAULT_USER")
         self.default_pass = os.environ.get("DEFAULT_PASS")
 
         #Initialize webdriver
-        self.options = webdriver.ChromeOptions()
-        self.options.add_argument("--window-size=700,450")
+        self.options = Options()
         prefs = {"download.default_directory" : f"{self.current_root_path}/procesar/"}
         self.options.add_experimental_option("prefs", prefs)
         self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=self.options)
@@ -44,12 +46,28 @@ class ConsultTrainees:
         
         self.df_consolidated = pd.DataFrame()
 
+
+
     def open_webdriver(self, url=None):
         try:
             if not url:
                 url = self.default_url
             self.driver.get(url)
-            self.driver.maximize_window()
+           
+            
+            # get screen size
+            monitor = get_monitors()[0]
+            screen_width = monitor.width
+            screen_height = monitor.height
+
+            self.driver.set_window_size(screen_width, 550)
+
+            # calculate position for top right corner
+            x_position = 0  # left edge
+            y_position = screen_height - self.driver.get_window_size()['height']
+
+            # set window position
+            self.driver.set_window_position(x_position, y_position)
             self.driver.switch_to.frame(0)
         except Exception as err:
             print(err)
@@ -71,7 +89,7 @@ class ConsultTrainees:
                 element.send_keys(password)
                 element = self.wait.until(EC.element_to_be_clickable((By.NAME, "ingresar")))
                 element.click()
-                print('Loggeo exitoso')
+                print('LOGGEO EXITOSO!')
                 return True
             except Exception as err:
                 print("Error al intentar realizar logging", err)
@@ -90,6 +108,7 @@ class ConsultTrainees:
             self.driver.execute_script("arguments[0].click();", element)
             element = self.wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="seleccionRol:roles"]/option[6]')))
             element.click()
+            print("ROL SELECCIONADO")
         except Exception as err:
             try:
                 element = self.driver.find_element(By.XPATH, '//*[@id="j_id_jsp_1108549618_6:dtprogramacionesDeAmbiente:0:j_id_jsp_1108549618_10"]')
@@ -122,12 +141,20 @@ class ConsultTrainees:
             consult_path  = f"{self.current_root_path}{extraPath_toRoot}{document_name}"
             if other_path:
                 consult_path  = f"{other_path}{document_name}"
+
+            # Check if the directory is empty
+            if not os.listdir(self.current_root_path + extraPath_toRoot):
+                print("Directory is empty")
+                return False
             if os.path.exists(consult_path):
                 dfBase = pd.read_excel(consult_path)
-                dfBase = pd.read_excel(consult_path)
+                if 'IDENTIFICADOR_FICHA' not in dfBase.columns:
+                    print('ERROR AL LEER EL ARCHIVO A PROCESAR, POR FAVOR CARGAR UN ARCHIVO VALIDO')
+                    return False
                 dfBase = pd.DataFrame(dfBase['IDENTIFICADOR_FICHA'])
                 dfBase.drop_duplicates(subset=['IDENTIFICADOR_FICHA'], inplace=True)
                 identificador_ficha_list = dfBase['IDENTIFICADOR_FICHA'].tolist()
+                print("FICHAS INGRESADAS PARA PROCESAR", identificador_ficha_list)
                 return identificador_ficha_list
 
         except Exception as err:
@@ -165,7 +192,7 @@ class ConsultTrainees:
                     removed_fichas.append(int(existing_ficha[0]))
             #print(f"Hay {len(list_fichas)} archivos faltantes por descargar")
             print("Fichas a descargar: ", list_fichas)
-            print("Fichas encontradas: ", removed_fichas)
+            print("Fichas encontradas que ya han sido descargadas: ", removed_fichas)
             return list_fichas
         except Exception as err:
             print(err)
@@ -207,7 +234,7 @@ class ConsultTrainees:
                 self.driver.execute_script("arguments[0].click();", element)
                 while os.path.exists(f"{self.current_root_path}/procesar/Reporte de Aprendices Ficha {f}.xls.crdownload") or \
                     any(file.startswith(".com.google.Chrome") for file in os.listdir(self.current_root_path)):
-                    print("Waiting for file to finish downloading...")
+                    print("Esperando a que el archivo termine de descargarse...")
                     time.sleep(1)
                 if os.path.exists(f"{self.current_root_path}/procesar/Reporte de Aprendices Ficha {f}.xls"):
                     print(f"Descarga finalizada de {f}")
@@ -269,8 +296,6 @@ class ConsultTrainees:
                     df_file_without_header = pd.read_excel(new_file_path)
                     df_file_without_header.to_excel(new_file_path, index=False)
 
-                    # Print the DataFrame with the contents of the processed files
-                    print(self.df_consolidated)
         except Exception as err:
             print(err)
             print(traceback.format_exc())
@@ -294,7 +319,6 @@ class ConsultTrainees:
             df_formacion.to_excel(output_file_path, index=False)
 
             print(f"Se ha guardado el archivo consolidado_final.xlsx en la siguiente ruta: {output_file_path}")
-
             file_list = [f for f in os.listdir(self.path_process_folder) if f.startswith('modified')]
 
             df_list = []
@@ -302,28 +326,52 @@ class ConsultTrainees:
                 file_path = os.path.join(self.path_process_folder, file_name)
                 print("Procesando archivo: ", file_path)
                 df = pd.read_excel(file_path, skiprows=4)
-                print(df.columns.tolist())
                 df = df[['Ficha de Caracterización:', 'Estado:', 'Tipo de Documento', 'Número de Documento', 'Nombre', 'Apellidos', 'Celular', 'Correo Electrónico', 'Estado']]
                 df_list.append(df)
 
             df_concat = pd.concat(df_list, axis=0, ignore_index=True)
 
-            output_path = f"{self.current_root_path}/entregables/Consolidado_Reporte_Aprendices.xlsx"
+            today = datetime.today()
+            date_string = today.strftime('%Y-%m-%d')
+        
+            output_path = f"{self.current_root_path}/entregables/Consolidado_Reporte_Aprendices_{date_string}.xlsx"
             df_concat.to_excel(output_path, index=False)
             df_concat = pd.read_excel(output_path)
 
             # Ver los primeros 5 registros del DataFrame
-            print(df_concat.head())
+            #print(df_concat.head())
             df_filtered = df_concat[df_concat['Estado'] == 'EN FORMACION']
         
             # Generar un archivo de Excel en la ruta deseada
-            print("generaCION DE ARCHIVO")
+            print("GENERACION DE ARCHIVO EXITOSA")
+            sys.stdout.flush()
             output_path = self.path_process_folder + "/Datos_formacion.xlsx"
             df_filtered.to_excel(output_path, index=False)
             # Ver los primeros 5 registros del DataFrame filtrado
-            print(df_filtered.head())
+            #print(df_filtered.head())
             texto_df = pd.DataFrame(df_filtered.iloc[:, 0].str.split('-', expand=True)[0])
+
+            return output_path
             
+        except Exception as err:
+            print(err)
+            print(traceback.format_exc())
+            return False
+        
+
+    def delete_all_files_in_procesar(self, confirmation):
+        try:
+            if confirmation:
+                print(confirmation)
+                for filename in os.listdir(f"{self.current_root_path}/procesar",):
+                    file_path = os.path.join(f"{self.current_root_path}/procesar", filename)
+                    try:
+                        if os.path.isfile(file_path):
+                            os.unlink(file_path)
+                    except Exception as e:
+                        print(f'Failed to delete {file_path}. Reason: {e}')
+            else:
+                print('HA OCURRIDO UN ERROR EN EL PROCESO... EJECUTE NUEVAMENTE')
         except Exception as err:
             print(err)
             print(traceback.format_exc())
@@ -333,6 +381,7 @@ class ConsultTrainees:
 # BotConsulta.login_process()
 # BotConsulta.select_role()
 # list_fichas = BotConsulta.obtain_fichas_a_descargar()
+# print(list_fichas)
 # final_download_files = BotConsulta.depurate_from_existing_files(list_fichas=list_fichas)
 # BotConsulta.download_files(final_download_files)
 # BotConsulta.modified_files()
