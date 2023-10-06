@@ -366,8 +366,8 @@ class ConsultTrainees:
             
         except Exception as err:
             print('ERROR EN AL INTENTAR GENERAR ARCHIVO CONSOLIDADO - POR FAVOR INTENTE DE NUEVO')
-            print(err)
-            print(traceback.format_exc())
+            # print(err)
+            # print(traceback.format_exc())
             return False
         
 
