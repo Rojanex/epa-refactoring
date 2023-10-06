@@ -79,6 +79,9 @@ class ConsultTrainees:
             if not user and not password:
                 user =  self.default_user
                 password = self.default_pass
+            if user == None or password == None:
+                print('ERROR EN PROCESO DE LOGIN - POR FAVOR DIGITE CREDENCIALES VALIDAS')
+                return False
 
             try:
                 element = self.wait.until(EC.element_to_be_clickable((By.ID, "username")))
@@ -92,13 +95,15 @@ class ConsultTrainees:
                 print('LOGGEO EXITOSO!')
                 return True
             except Exception as err:
-                print("Error al intentar realizar logging", err)
-                print(traceback.format_exc())
+                print('ERROR EN PROCESO DE LOGIN - POR FAVOR DIGITE CREDENCIALES VALIDAS')
+                #print(traceback.format_exc())
                 return False
 
         except Exception as err:
-            print(err)
-            print(traceback.format_exc())
+            print('ERROR EN PROCESO DE LOGIN - POR FAVOR DIGITE CREDENCIALES VALIDAS')
+            return False
+            # print(err)
+            # print(traceback.format_exc())
 
 
     def select_role(self):
@@ -115,8 +120,8 @@ class ConsultTrainees:
                 self.driver.execute_script("arguments[0].click();", element)
             except Exception as err:
                 print("ERROR AL SELECCIONAR ROL")
-                print(err)
-                print(traceback.format_exc())           
+                # print(err)
+                # print(traceback.format_exc())           
 
 
     def obtain_fichas_a_descargar(self, 
@@ -144,22 +149,23 @@ class ConsultTrainees:
 
             # Check if the directory is empty
             if not os.listdir(self.current_root_path + extraPath_toRoot):
-                print("Directory is empty")
+                print("NO SE HA SUBIDO UN ARCHIVO DE ENTRADA - POR FAVOR REALIZAR LA CARGA")
                 return False
             if os.path.exists(consult_path):
                 dfBase = pd.read_excel(consult_path)
-                if 'IDENTIFICADOR_FICHA' not in dfBase.columns:
+                if 'FICHAS' not in dfBase.columns:
                     print('ERROR AL LEER EL ARCHIVO A PROCESAR, POR FAVOR CARGAR UN ARCHIVO VALIDO')
                     return False
-                dfBase = pd.DataFrame(dfBase['IDENTIFICADOR_FICHA'])
-                dfBase.drop_duplicates(subset=['IDENTIFICADOR_FICHA'], inplace=True)
-                identificador_ficha_list = dfBase['IDENTIFICADOR_FICHA'].tolist()
+                dfBase = pd.DataFrame(dfBase['FICHAS'])
+                dfBase.drop_duplicates(subset=['FICHAS'], inplace=True)
+                identificador_ficha_list = dfBase['FICHAS'].tolist()
                 print("FICHAS INGRESADAS PARA PROCESAR", identificador_ficha_list)
                 return identificador_ficha_list
 
         except Exception as err:
-            print(err)
-            print(traceback.format_exc())
+            print('ERROR EN PROCESO DE OBTENCION DE FICHAS A DESCARGAR')
+            # print(err)
+            # print(traceback.format_exc())
 
     def keep_driver_open(self):
         input("Press any key to close the webdriver...")
@@ -195,8 +201,10 @@ class ConsultTrainees:
             print("Fichas encontradas que ya han sido descargadas: ", removed_fichas)
             return list_fichas
         except Exception as err:
-            print(err)
-            print(traceback.format_exc())
+            print('ERROR EN EL PROCESO DE DEPURACION FICHAS')
+            return False
+            # print(err)
+            # print(traceback.format_exc())
 
 
     def download_files(self, list_fichas):
@@ -239,6 +247,8 @@ class ConsultTrainees:
                 if os.path.exists(f"{self.current_root_path}/procesar/Reporte de Aprendices Ficha {f}.xls"):
                     print(f"Descarga finalizada de {f}")
         except Exception as err:
+            print('ERROR EN LA DESCARGA FICHAS - INTENTE NUEVAMENTE')
+            return False
             print(err)
             print(traceback.format_exc())
 
@@ -297,8 +307,9 @@ class ConsultTrainees:
                     df_file_without_header.to_excel(new_file_path, index=False)
 
         except Exception as err:
-            print(err)
-            print(traceback.format_exc())
+            print('ERROR EN AL INTENTAR PROCESAR LOS ARCHIVOS - POR FAVOR INTENTE DE NUEVO')
+            # print(err)
+            # print(traceback.format_exc())
 
     def generate_consolidated_trainees(self):
         try: 
@@ -318,13 +329,13 @@ class ConsultTrainees:
             output_file_path = self.path_process_folder + '/consolidado_final.xlsx'
             df_formacion.to_excel(output_file_path, index=False)
 
-            print(f"Se ha guardado el archivo consolidado_final.xlsx en la siguiente ruta: {output_file_path}")
+            # print(f"Se ha guardado el archivo consolidado_final.xlsx en la siguiente ruta: {output_file_path}")
             file_list = [f for f in os.listdir(self.path_process_folder) if f.startswith('modified')]
 
             df_list = []
             for file_name in file_list:
                 file_path = os.path.join(self.path_process_folder, file_name)
-                print("Procesando archivo: ", file_path)
+                print("Procesando archivo: ", file_name)
                 df = pd.read_excel(file_path, skiprows=4)
                 df = df[['Ficha de Caracterización:', 'Estado:', 'Tipo de Documento', 'Número de Documento', 'Nombre', 'Apellidos', 'Celular', 'Correo Electrónico', 'Estado']]
                 df_list.append(df)
@@ -332,7 +343,7 @@ class ConsultTrainees:
             df_concat = pd.concat(df_list, axis=0, ignore_index=True)
 
             today = datetime.today()
-            date_string = today.strftime('%Y-%m-%d')
+            date_string = today.strftime('%Y-%m-%d--%H:%M')
         
             output_path = f"{self.current_root_path}/entregables/Consolidado_Reporte_Aprendices_{date_string}.xlsx"
             df_concat.to_excel(output_path, index=False)
@@ -343,7 +354,7 @@ class ConsultTrainees:
             df_filtered = df_concat[df_concat['Estado'] == 'EN FORMACION']
         
             # Generar un archivo de Excel en la ruta deseada
-            print("GENERACION DE ARCHIVO EXITOSA")
+            print("GENERACION DE CONSOLIDADO EXITOSA")
             sys.stdout.flush()
             output_path = self.path_process_folder + "/Datos_formacion.xlsx"
             df_filtered.to_excel(output_path, index=False)
@@ -354,12 +365,13 @@ class ConsultTrainees:
             return output_path
             
         except Exception as err:
+            print('ERROR EN AL INTENTAR GENERAR ARCHIVO CONSOLIDADO - POR FAVOR INTENTE DE NUEVO')
             print(err)
             print(traceback.format_exc())
             return False
         
 
-    def delete_all_files_in_procesar(self, confirmation):
+    def delete_all_files_in_procesar_and_entrada(self, confirmation):
         try:
             if confirmation:
                 print(confirmation)
@@ -370,11 +382,24 @@ class ConsultTrainees:
                             os.unlink(file_path)
                     except Exception as e:
                         print(f'Failed to delete {file_path}. Reason: {e}')
+                for filename in os.listdir(f"{self.current_root_path}/entrada",):
+                    file_path = os.path.join(f"{self.current_root_path}/entrada", filename)
+                    try:
+                        if os.path.isfile(file_path):
+                            os.unlink(file_path)
+                    except Exception as e:
+                        print(f'Failed to delete {file_path}. Reason: {e}')
             else:
                 print('HA OCURRIDO UN ERROR EN EL PROCESO... EJECUTE NUEVAMENTE')
         except Exception as err:
+            print('HA OCURRIDO UN ERROR EN EL PROCESO... EJECUTE NUEVAMENTE')
+            return False
             print(err)
             print(traceback.format_exc())
+
+
+    
+
 
 # BotConsulta = ConsultTrainees()
 # BotConsulta.open_webdriver()

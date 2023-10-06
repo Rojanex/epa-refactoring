@@ -48,6 +48,8 @@ class App(customtkinter.CTk):
         self.image_icon_image = customtkinter.CTkImage(Image.open(os.path.join(image_path, "image_icon_light.png")), size=(20, 20))
         self.home_image = customtkinter.CTkImage(light_image=Image.open(os.path.join(image_path, "home_dark.png")),
                                                  dark_image=Image.open(os.path.join(image_path, "home_light.png")), size=(20, 20))
+        self.historical_image = customtkinter.CTkImage(light_image=Image.open(os.path.join(image_path, "historical.png")),
+                                                 dark_image=Image.open(os.path.join(image_path, "home_light.png")), size=(20, 20))
         self.chat_image = customtkinter.CTkImage(light_image=Image.open(os.path.join(image_path, "chat_dark.png")),
                                                  dark_image=Image.open(os.path.join(image_path, "chat_light.png")), size=(20, 20))
         self.add_user_image = customtkinter.CTkImage(light_image=Image.open(os.path.join(image_path, "add_user_dark.png")),
@@ -66,6 +68,14 @@ class App(customtkinter.CTk):
                                                    fg_color="transparent", text_color=("gray10", "gray90"), hover_color=("gray70", "gray30"),
                                                    image=self.home_image, anchor="w", command=self.home_button_event)
         self.home_button.grid(row=1, column=0, sticky="ew")
+
+
+        self.historical_button = customtkinter.CTkButton(self.navigation_frame, corner_radius=0, height=40, border_spacing=10, text="Ver Historico",
+                                                   fg_color="transparent", text_color=("gray10", "gray90"), hover_color=("gray70", "gray30"),
+                                                   image=self.historical_image, anchor="w", command=self.historical_button_event)
+        self.historical_button.grid(row=2, column=0, sticky="ew")
+
+
         
         self.home_frame = customtkinter.CTkFrame(self, corner_radius=0, fg_color="transparent")
         self.home_frame.grid_columnconfigure(0, weight=1)
@@ -147,7 +157,19 @@ class App(customtkinter.CTk):
         self.file_frame_large_process_label.grid(row=0, column=0, padx=20, pady=10)
 
         self.file_button = customtkinter.CTkButton(self.file_frame, text="Ver archivo", command=lambda: self.open_entregable(self.path_consolidated))
-        self.file_button.grid(row=1, column=0, padx=20, pady=30, sticky="ew")        
+        self.file_button.grid(row=1, column=0, padx=20, pady=30, sticky="ew")    
+
+
+         # frame Ver historico
+
+        self.historical_frame = customtkinter.CTkFrame(self, corner_radius=0, fg_color="transparent")
+        self.historical_frame.grid_columnconfigure(0, weight=1)
+
+        self.historical_frame_large_process_label = customtkinter.CTkLabel(self.historical_frame, text="Historicos de Consolidado", font=("Arial", 20, "bold"))
+        self.historical_frame_large_process_label.grid(row=0, column=0, padx=20, pady=10)
+
+        self.historical_button = customtkinter.CTkButton(self.historical_frame, text="Ver historico", command=lambda: self.open_entregable(f"{self.current_root_path}/entregables"))
+        self.historical_button.grid(row=1, column=0, padx=20, pady=30, sticky="ew")        
 
         # select default frame
         self.select_frame_by_name("home")
@@ -194,6 +216,10 @@ class App(customtkinter.CTk):
             self.file_frame.grid(row=0, column=1, sticky="nsew")
         else:
             self.file_frame.grid_forget()
+        if name == "historical":
+            self.historical_frame.grid(row=0, column=1, sticky="nsew")
+        else:
+            self.historical_frame.grid_forget()
 
 
     def report_trainees(self, usuario, contrasena):
@@ -207,13 +233,16 @@ class App(customtkinter.CTk):
             response_login = BotConsulta.login_process(user=usuario, password=contrasena)
             BotConsulta.select_role()
             list_fichas = BotConsulta.obtain_fichas_a_descargar(document_name=self.filename)
-            final_download_files = BotConsulta.depurate_from_existing_files(list_fichas=list_fichas)
-            BotConsulta.download_files(final_download_files)
-            BotConsulta.modified_files()
-            self.path_consolidated = BotConsulta.generate_consolidated_trainees()
-            if self.path_consolidated != False:
-                BotConsulta.delete_all_files_in_procesar(self.path_consolidated)
-                self.select_frame_by_name("file")
+            if list_fichas ==False:
+                pass
+            else:
+                final_download_files = BotConsulta.depurate_from_existing_files(list_fichas=list_fichas)
+                BotConsulta.download_files(final_download_files)
+                BotConsulta.modified_files()
+                self.path_consolidated = BotConsulta.generate_consolidated_trainees()
+                if self.path_consolidated != False:
+                    BotConsulta.delete_all_files_in_procesar_and_entrada(self.path_consolidated)
+                    self.select_frame_by_name("file")
         finally:
             sys.stdout = old_stdout
             sys.stderr = old_stderr
@@ -244,6 +273,9 @@ class App(customtkinter.CTk):
 
     def home_button_event(self):
         self.select_frame_by_name("home")
+
+    def historical_button_event(self):
+        self.select_frame_by_name("historical")
 
     def upload_button_event(self):
         self.select_frame_by_name("upload")
