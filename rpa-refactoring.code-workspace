@@ -7,5 +7,9 @@
 			"path": "../BotDescargaYprocesar"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"cSpell.words": [
+			"GENERACION"
+		]
+	}
 }

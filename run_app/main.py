@@ -29,15 +29,18 @@ class App(customtkinter.CTk):
         super().__init__()
         
         self.title("Automatización RPA en el Centro de Comercios SENA")
-        self.geometry("700x550")
+        self.geometry("550x500")
         self.current_root_path = os.getcwd()
         # set grid layout 1x2
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
+        self.attributes("-topmost", True)
         
         self.file_path_entrada = None
         self.filename = ""
         self.path_consolidated = ""
+        self.empty_process_path = True
+
 
         # load images with light and dark mode image
         image_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "test_images")
@@ -121,12 +124,36 @@ class App(customtkinter.CTk):
         self.upload_frame_large_up_label.grid(row=2, column=0, padx=15, pady=5)
 
 
-        self.upload_frame_button_4 = customtkinter.CTkButton(self.upload_frame, text="Iniciar proceso", compound="bottom", anchor="w",\
+        self.upload_frame_button_4 = customtkinter.CTkButton(self.upload_frame, text="Iniciar proceso - Reporte de Aprendices", compound="bottom", anchor="w",\
                                                            command=lambda: self.report_trainees(self.entry_user.get(), self.entry_pass.get()))
         self.upload_frame_button_4.grid(row=3, column=0, padx=20, pady=30)
 
         self.upload_frame_text = customtkinter.CTkTextbox(self.upload_frame)
         self.upload_frame_text.grid(row=4, column=0, padx=15, pady=5, sticky="ew")
+
+        #frame upload - juicios
+
+        self.upload_frame_juicios = customtkinter.CTkFrame(self, corner_radius=0, fg_color="transparent")
+        self.upload_frame_juicios.grid_columnconfigure(0, weight=1)
+
+        self.upload_frame_large_process_label_juicios = customtkinter.CTkLabel(self.upload_frame_juicios, text="Cargue el archivo de entrada", font=("Arial", 20, "bold"))
+        self.upload_frame_large_process_label_juicios.grid(row=0, column=0, padx=20, pady=10)
+
+        self.upload_button_juicios = customtkinter.CTkButton(self.upload_frame_juicios, text="Cargar Archivo", command=self.open_file)
+        self.upload_button_juicios.grid(row=1, column=0, padx=20, pady=30, sticky="ew")
+
+        self.filename_var_juicios = StringVar()
+        self.filename_var_juicios.trace('w', self.update_label)
+        self.upload_frame_large_up_label_juicios = customtkinter.CTkLabel(self.upload_frame_juicios, textvariable=self.filename_var, font=("Arial", 15, "bold"))
+        self.upload_frame_large_up_label_juicios.grid(row=2, column=0, padx=15, pady=5)
+
+
+        self.upload_frame_button_4_juicios = customtkinter.CTkButton(self.upload_frame_juicios, text="Iniciar proceso - Reporte de Juicios", compound="bottom", anchor="w",\
+                                                           command=lambda: self.report_juicios(self.entry_user.get(), self.entry_pass.get()))
+        self.upload_frame_button_4_juicios.grid(row=3, column=0, padx=20, pady=30)
+
+        self.upload_frame_text_juicios = customtkinter.CTkTextbox(self.upload_frame_juicios)
+        self.upload_frame_text_juicios.grid(row=4, column=0, padx=15, pady=5, sticky="ew")
 
 
 
@@ -143,6 +170,10 @@ class App(customtkinter.CTk):
         self.login_frame_button_4 = customtkinter.CTkButton(self.login_frame, text="Reporte de Aprendices", compound="bottom", anchor="w",\
                                                            command=self.upload_button_event)
         self.login_frame_button_4.grid(row=1, column=0, padx=20, pady=30)
+
+        self.login_frame_button_4 = customtkinter.CTkButton(self.login_frame, text="Reporte de Juicios", compound="bottom", anchor="w",\
+                                                           command=self.upload_juicio_button_event)
+        self.login_frame_button_4.grid(row=2, column=0, padx=20, pady=30)
 
         self.login_frame_text = customtkinter.CTkTextbox(self.login_frame)
         self.login_frame_text.grid(row=3, column=0, padx=20, pady=5, sticky="ew")
@@ -168,7 +199,7 @@ class App(customtkinter.CTk):
         self.historical_frame_large_process_label = customtkinter.CTkLabel(self.historical_frame, text="Historicos de Consolidado", font=("Arial", 20, "bold"))
         self.historical_frame_large_process_label.grid(row=0, column=0, padx=20, pady=10)
 
-        self.historical_button = customtkinter.CTkButton(self.historical_frame, text="Ver historico", command=lambda: self.open_entregable(f"{self.current_root_path}/entregables"))
+        self.historical_button = customtkinter.CTkButton(self.historical_frame, text="Ver historico", command=lambda: self.open_entregable(f"{self.current_root_path}/reporte"))
         self.historical_button.grid(row=1, column=0, padx=20, pady=30, sticky="ew")        
 
         # select default frame
@@ -189,9 +220,9 @@ class App(customtkinter.CTk):
 
     def open_entregable(self, path_to_start):
         if os.name == 'nt':
-            os.startfile(f'{self.current_root_path}/entregables')
+            os.startfile(f'{self.current_root_path}/reporte')
         else:  # Unix
-            subprocess.call(['open', f'{self.current_root_path}/entregables'])
+            subprocess.call(['open', f'{self.current_root_path}/reporte'])
         
 
     def select_frame_by_name(self, name):
@@ -220,6 +251,10 @@ class App(customtkinter.CTk):
             self.historical_frame.grid(row=0, column=1, sticky="nsew")
         else:
             self.historical_frame.grid_forget()
+        if name == "upload_juicio":
+            self.upload_frame_juicios.grid(row=0, column=1, sticky="nsew")
+        else:
+            self.upload_frame_juicios.grid_forget()
 
 
     def report_trainees(self, usuario, contrasena):
@@ -228,24 +263,78 @@ class App(customtkinter.CTk):
         sys.stdout = Redirector(self.upload_frame_text)
         sys.stderr = Redirector(self.upload_frame_text)
         try:
-            BotConsulta = ConsultTrainees()
-            BotConsulta.open_webdriver()
-            response_login = BotConsulta.login_process(user=usuario, password=contrasena)
-            BotConsulta.select_role()
-            list_fichas = BotConsulta.obtain_fichas_a_descargar(document_name=self.filename)
-            if list_fichas ==False:
-                pass
+            if os.listdir(f'{os.getcwd()}/procesar/'):
+                # Directory is not empty
+                continue_process = messagebox.askyesno("La carpeta procesar no esta vacía",
+                                                   f"La carpeta '{self.current_root_path}/procesar/' contiene archivos descargados. Desea continuar?")
+            
+                if not continue_process:
+                    self.empty_process_path = False  # Exit from the function or loop
+                else:
+                    self.empty_process_path = True
             else:
-                final_download_files = BotConsulta.depurate_from_existing_files(list_fichas=list_fichas)
-                BotConsulta.download_files(final_download_files)
-                BotConsulta.modified_files()
-                self.path_consolidated = BotConsulta.generate_consolidated_trainees()
-                if self.path_consolidated != False:
-                    BotConsulta.delete_all_files_in_procesar_and_entrada(self.path_consolidated)
-                    self.select_frame_by_name("file")
+                self.empty_process_path = True
+
+            if self.empty_process_path == True:
+                BotConsulta = ConsultTrainees()
+                BotConsulta.open_webdriver()
+                response_login = BotConsulta.login_process(user=usuario, password=contrasena)
+                BotConsulta.select_role()
+                list_fichas = BotConsulta.obtain_fichas_a_descargar(document_name=self.filename)
+                if list_fichas ==False:
+                    pass
+                else:
+                    final_download_files = BotConsulta.depurate_from_existing_files(list_fichas=list_fichas)
+                    BotConsulta.download_files(final_download_files)
+                    BotConsulta.modified_files()
+                    self.path_consolidated = BotConsulta.generate_consolidated_trainees()
+                    if self.path_consolidated != False:
+                        BotConsulta.delete_all_files_in_procesar_and_entrada(self.path_consolidated)
+                        self.select_frame_by_name("file")
         finally:
             sys.stdout = old_stdout
             sys.stderr = old_stderr
+
+
+    def report_juicios(self, usuario, contrasena):
+        old_stdout = sys.stdout
+        old_stderr = sys.stderr
+        sys.stdout = Redirector(self.upload_frame_text)
+        sys.stderr = Redirector(self.upload_frame_text)
+        try:
+            if os.listdir(f'{os.getcwd()}/procesar/'):
+                # Directory is not empty
+                continue_process = messagebox.askyesno("La carpeta procesar no esta vacía",
+                                                   f"La carpeta '{self.current_root_path}/procesar/' contiene archivos descargados. Desea continuar?")
+            
+                if not continue_process:
+                    self.empty_process_path = False  # Exit from the function or loop
+                else:
+                    self.empty_process_path = True
+            else:
+                self.empty_process_path = True
+
+            if self.empty_process_path == True:
+                # Directory is empty, continue with the process
+                BotConsulta = ConsultTrainees()
+                BotConsulta.open_webdriver()
+                response_login = BotConsulta.login_process(user=usuario, password=contrasena)
+                BotConsulta.select_role()
+                list_fichas = BotConsulta.obtain_fichas_a_descargar(document_name=self.filename)
+                if list_fichas ==False:
+                    pass
+                else:
+                    final_download_files = BotConsulta.depurate_from_existing_files(list_fichas=list_fichas)
+                    BotConsulta.download_juicios_process(final_download_files)
+                    BotConsulta.restructure_for_consolidated_file()
+                    self.path_consolidated = BotConsulta.generate_consolidated_juicios()
+                    if self.path_consolidated != False:
+                        BotConsulta.delete_all_files_in_procesar_and_entrada(self.path_consolidated)
+                        self.select_frame_by_name("file")
+        finally:
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
+
 
 
     def next_button(self, usuario, contrasena):
@@ -279,6 +368,9 @@ class App(customtkinter.CTk):
 
     def upload_button_event(self):
         self.select_frame_by_name("upload")
+
+    def upload_juicio_button_event(self):
+        self.select_frame_by_name("upload_juicio")
 
     def frame_3_button_event(self):
         self.select_frame_by_name("frame_3")

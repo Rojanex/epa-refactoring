@@ -21,7 +21,7 @@ class ConsultTrainees:
 
     def __init__(self, user=None, password=None) -> None:
 
-         #Carpeta raiz
+         #Carpeta raíz
         self.current_root_path = os.getcwd()
         
         #Environ Variables
@@ -38,7 +38,7 @@ class ConsultTrainees:
 
        
         
-        principal_folders = ["/entrada/", '/procesar/', '/entregables/']
+        principal_folders = ["/entrada/", '/procesar/', '/reporte/']
         for folder in principal_folders: # Se crean las carpetas necesarias
             if not os.path.exists(f"{self.current_root_path}{folder}"):
                 os.mkdir(f"{self.current_root_path}{folder}")
@@ -125,7 +125,7 @@ class ConsultTrainees:
 
 
     def obtain_fichas_a_descargar(self, 
-                               document_name="consulta.xlsx", 
+                               document_name=None, 
                                other_path=None,  #other path se va
                                extraPath_toRoot="/entrada/"):
         
@@ -143,14 +143,19 @@ class ConsultTrainees:
         """
         
         try:
-            consult_path  = f"{self.current_root_path}{extraPath_toRoot}{document_name}"
-            if other_path:
-                consult_path  = f"{other_path}{document_name}"
-
             # Check if the directory is empty
             if not os.listdir(self.current_root_path + extraPath_toRoot):
                 print("NO SE HA SUBIDO UN ARCHIVO DE ENTRADA - POR FAVOR REALIZAR LA CARGA")
                 return False
+            #Check if there is a document on init folder
+            if document_name is None and os.listdir(self.current_root_path + extraPath_toRoot):
+                document_name = os.listdir(self.current_root_path + extraPath_toRoot)[0]
+
+            consult_path  = f"{self.current_root_path}{extraPath_toRoot}{document_name}"
+            if other_path:
+                consult_path  = f"{other_path}{document_name}"
+
+            #Get all fichas
             if os.path.exists(consult_path):
                 dfBase = pd.read_excel(consult_path)
                 if 'FICHAS' not in dfBase.columns:
@@ -163,9 +168,10 @@ class ConsultTrainees:
                 return identificador_ficha_list
 
         except Exception as err:
-            print('ERROR EN PROCESO DE OBTENCION DE FICHAS A DESCARGAR')
-            # print(err)
-            # print(traceback.format_exc())
+            print('ERROR EN PROCESO DE OBTENCIÓN DE FICHAS A DESCARGAR')
+            print(err)
+            print(traceback.format_exc())
+            return False
 
     def keep_driver_open(self):
         input("Press any key to close the webdriver...")
@@ -190,6 +196,8 @@ class ConsultTrainees:
             procesar_path  = f"{self.current_root_path}{extraPath_toRoot}"
             file_list = os.listdir(procesar_path)
             existing_files = [file for file in file_list if file.startswith('Reporte de Aprendices Ficha')]
+            if len(existing_files) == 0:
+                existing_files = [file for file in file_list if file.startswith('Reporte de Juicios Evaluativos')]
             # Calcular la cantidad de archivos faltantes y mostrarla
             for f in existing_files:
                 existing_ficha = re.findall(r'\d+', f)
@@ -201,7 +209,7 @@ class ConsultTrainees:
             print("Fichas encontradas que ya han sido descargadas: ", removed_fichas)
             return list_fichas
         except Exception as err:
-            print('ERROR EN EL PROCESO DE DEPURACION FICHAS')
+            print('ERROR EN EL PROCESO DE DEPURACIÓN FICHAS')
             return False
             # print(err)
             # print(traceback.format_exc())
@@ -234,28 +242,36 @@ class ConsultTrainees:
                 #print(len(nuevo_df_sin_duplicados), "por descargar")
                 element = self.driver.find_element(By.XPATH, f'//div[2]/form/fieldset/div/div/input')
                 self.driver.execute_script("arguments[0].click();", element)
-                element = self.driver.find_element(By.XPATH, f'//body/div[2]/form/div/fieldset/table/tbody/tr/td/a')
-                self.driver.execute_script("arguments[0].click();", element)
-                self.driver.switch_to.default_content()
-                self.driver.switch_to.frame(0)
-                element = self.driver.find_element(By.XPATH, f'//body/div[2]/form/fieldset/div/div/input')
-                self.driver.execute_script("arguments[0].click();", element)
-                while os.path.exists(f"{self.current_root_path}/procesar/Reporte de Aprendices Ficha {f}.xls.crdownload") or \
-                    any(file.startswith(".com.google.Chrome") for file in os.listdir(self.current_root_path)):
-                    print("Esperando a que el archivo termine de descargarse...")
-                    time.sleep(1)
-                if os.path.exists(f"{self.current_root_path}/procesar/Reporte de Aprendices Ficha {f}.xls"):
-                    print(f"Descarga finalizada de {f}")
+
+                #check if ficha its correct
+                time.sleep(1)
+                elemento2 = self.driver.find_element(By.XPATH,f'/html/body[1]/div[2]/table/tbody/tr/td/span')
+                if elemento2:
+                    print(f'No se encontraron registros para la ficha ({f}) seleccionada... Por favor verificar')
+                    return False
+                else:
+                    element = self.driver.find_element(By.XPATH, f'//body/div[2]/form/div/fieldset/table/tbody/tr/td/a')
+                    self.driver.execute_script("arguments[0].click();", element)
+                    self.driver.switch_to.default_content()
+                    self.driver.switch_to.frame(0)
+                    element = self.driver.find_element(By.XPATH, f'//body/div[2]/form/fieldset/div/div/input')
+                    self.driver.execute_script("arguments[0].click();", element)
+                    while os.path.exists(f"{self.current_root_path}/procesar/Reporte de Aprendices Ficha {f}.xls.crdownload") or \
+                        any(file.startswith(".com.google.Chrome") for file in os.listdir(self.current_root_path)):
+                        print("Esperando a que el archivo termine de descargarse...")
+                        time.sleep(1)
+                    if os.path.exists(f"{self.current_root_path}/procesar/Reporte de Aprendices Ficha {f}.xls"):
+                        print(f"Descarga finalizada de {f}")
         except Exception as err:
             print('ERROR EN LA DESCARGA FICHAS - INTENTE NUEVAMENTE')
+            # print(err)
+            # print(traceback.format_exc())
             return False
-            print(err)
-            print(traceback.format_exc())
+            
 
 
     def modified_files(self):
         try:
-            print(os.listdir(self.path_process_folder))
             for filename in os.listdir(self.path_process_folder):
                 if filename.endswith('.xls'):
                     print('Procesando...', filename)
@@ -345,16 +361,16 @@ class ConsultTrainees:
             today = datetime.today()
             date_string = today.strftime('%Y-%m-%d--%H:%M')
         
-            output_path = f"{self.current_root_path}/entregables/Consolidado_Reporte_Aprendices_{date_string}.xlsx"
+            output_path = f"{self.current_root_path}/reporte/Consolidado_Reporte_Aprendices_{date_string}.xlsx"
             df_concat.to_excel(output_path, index=False)
             df_concat = pd.read_excel(output_path)
 
             # Ver los primeros 5 registros del DataFrame
             #print(df_concat.head())
-            df_filtered = df_concat[df_concat['Estado'] == 'EN FORMACION']
+            df_filtered = df_concat[df_concat['Estado'] == 'EN FORMACIÓN']
         
             # Generar un archivo de Excel en la ruta deseada
-            print("GENERACION DE CONSOLIDADO EXITOSA")
+            print("GENERACIÓN DE CONSOLIDADO EXITOSA")
             sys.stdout.flush()
             output_path = self.path_process_folder + "/Datos_formacion.xlsx"
             df_filtered.to_excel(output_path, index=False)
@@ -398,17 +414,194 @@ class ConsultTrainees:
             print(traceback.format_exc())
 
 
+    def download_juicios_process(self, list_fichas):
+        try:
+            if len(list_fichas) == 0:
+                print("No hay fichas por descargar...")
+                return False
+            for f in list_fichas:
+                self.driver.switch_to.default_content()
+                elemento = self.wait.until(EC.element_to_be_clickable((By.XPATH, f'//*[@id="side-menu"]/li[6]/a')))
+                self.driver.execute_script("arguments[0].click();", elemento)
+                elemento = self.driver.find_element(By.XPATH, f'//*[@id="side-menu"]/li[6]/ul/li[1]/a')
+                self.driver.execute_script("arguments[0].click();", elemento)
+                elemento = self.driver.find_element(By.XPATH, f'//*[@id="side-menu"]/li[6]/ul/li[1]/ul/li[3]/a')
+                self.driver.execute_script("arguments[0].click();", elemento)
+                elemento = self.driver.find_element(By.XPATH, f'//*[@id="146979Opcion"]')
+                self.driver.execute_script("arguments[0].click();", elemento)
+                self.driver.switch_to.frame('contenido')
+                time.sleep(1)
+                elemento = self.driver.find_element(By.XPATH, f'/html/body[1]/div[2]/form/fieldset/div/table/tbody/tr/td[2]/table/tbody/tr/td[2]/a')
+                self.driver.execute_script("arguments[0].click();", elemento)
+                self.driver.switch_to.frame('modalDialogContentviewDialog2')
+                time.sleep(1)
+                elemento = self.driver.find_element(By.XPATH, f'//*[@id="form:codigoFichaITX"]')
+                self.driver.execute_script("arguments[0].click();", elemento)
+                elemento.send_keys(f) #//*[@id="j_id_jsp_581860097_102"]
+                elemento = self.driver.find_element(By.XPATH,f'//div[2]/form/fieldset/div/div/input') 
+                self.driver.execute_script("arguments[0].click();", elemento)
+                
+                #check if element id wrong
+                time.sleep(1)
+                elemento = self.driver.find_element(By.XPATH,f'/html/body[1]/div[2]/table/tbody/tr/td/span')
+                if elemento:
+                    print(f'No se encontraron registros para la ficha ({f}) seleccionada... Por favor verificar')
+                    return False
+                else:
+                    elemento = self.driver.find_element(By.XPATH,f'//body/div[2]/form/div/fieldset/table/tbody/tr/td/a')
+                    self.driver.execute_script("arguments[0].click();", elemento)
+                    self.driver.switch_to.default_content()
+                    self.driver.switch_to.frame(0) 
+                    elemento = self.driver.find_element(By.XPATH,f'//body/div[2]/form/fieldset/div/div/input')
+                    self.driver.execute_script("arguments[0].click();", elemento)
+                    time.sleep(1)
+                    while os.path.exists(f"{self.current_root_path}/procesar/Reporte de Juicios Evaluativos.xls.crdownload") or \
+                        any(file.startswith(".com.google.Chrome") for file in os.listdir(self.current_root_path)):
+                        print("Esperando a que el archivo termine de descargarse...")
+                        time.sleep(1)
+                    if os.path.exists(f"{self.current_root_path}/procesar/Reporte de Juicios Evaluativos.xls"):
+                        print(f"Descarga finalizada de Reporte de Juicios {f}")
+                        os.rename(f"{self.current_root_path}/procesar/Reporte de Juicios Evaluativos.xls", \
+                                f"{self.current_root_path}/procesar/Reporte de Juicios Evaluativos {f}.xls")
+        except Exception as err:
+            print('ERROR EN LA DESCARGA FICHAS - INTENTE NUEVAMENTE')
+            # print(err)
+            # print(traceback.format_exc())
+            return False
+            
+
+
+    def restructure_for_consolidated_file(self):
+        try:
+            for filename in os.listdir(f"{self.current_root_path}/procesar/"):
+                if filename.startswith('Reporte de Juicios Evaluativos') and filename.endswith('.xls'):
+                    if filename.endswith('.xls'):
+                        print('Procesando...', filename)
+                        name, extension = os.path.splitext(filename)
+                        file_path_xlsx = f"{self.current_root_path}/procesar/{name}.xlsx"
+                        df = pd.read_excel(f"{self.current_root_path}/procesar/{name}{extension}")
+                        df.to_excel(file_path_xlsx, index=False)
+                        os.remove(f"{self.current_root_path}/procesar/{filename}")
+                        # Load the workbook
+                        book = load_workbook(file_path_xlsx)
+                        sheet = book.active
+  
+
+                        # Create a new Excel workbook and a new worksheet
+                        new_book = Workbook()
+                        new_sheet = new_book.active
+
+                        # Write the values to the new worksheet
+                        new_sheet['A1'] = sheet['A3'].value
+                        new_sheet['B1'] = sheet['A4'].value
+                        new_sheet['C1'] = sheet['A6'].value
+                        new_sheet['D1'] = sheet['A7'].value
+                        new_sheet['E1'] = sheet['A8'].value
+                        new_sheet['F1'] = sheet['A9'].value
+                        new_sheet['G1'] = sheet['A11'].value
+                        new_sheet['H1'] = sheet['A12'].value
+
+                        #C's
+                        c3 = sheet['C3'].value
+                        c4 = sheet['C4'].value
+                        c5 = sheet['C5'].value
+                        c6 = sheet['C6'].value
+                        c7 = sheet['C7'].value
+                        c8 = sheet['C8'].value
+                        c9 = sheet['C9'].value
+                        c10 = sheet['C10'].value
+                        c11 = sheet['C11'].value
+
+                        # Write the values to the new worksheet
+                        for row in range(2, sheet.max_row + 1):
+                            if sheet.max_column > 9 and sheet.cell(row=row, column=9).value == '':
+                                new_sheet.cell(row=row, column=9, value=c8)
+                            elif sheet.max_column > 10 and sheet.cell(row=row, column=10).value == '':
+                                new_sheet.cell(row=row, column=10, value=c9)
+                            else:
+                                pass
+                                # Haz algo si la celda ya tiene un valor
+                            new_sheet.cell(row=row, column=1, value=c3)
+                            new_sheet.cell(row=row, column=2, value=c4)
+                            new_sheet.cell(row=row, column=3, value=c6)
+                            new_sheet.cell(row=row, column=4, value=c7)
+                            new_sheet.cell(row=row, column=5, value=c8)
+                            new_sheet.cell(row=row, column=6, value=c9)
+                            new_sheet.cell(row=row, column=7, value=c10)
+                            new_sheet.cell(row=row, column=8, value=c11)
+
+
+                        for row in range(13, sheet.max_row + 1):
+                            for col in range(1, 10):
+                                new_sheet.cell(row=row-12, column=col+8, value=sheet.cell(row=row, column=col).value)
+
+                        # Get the original file name without the extension
+                        filename_without_ext = os.path.splitext(filename)[0]
+
+                        # Define the path of the new modified Excel file
+                        new_file_path = os.path.join(f"{self.current_root_path}/procesar/", 'new_' + filename_without_ext + '.xlsx')
+                        new_book.save(new_file_path)
+
+        except Exception as err:
+            print(err)
+            print(traceback.format_exc())
+
+
+    def generate_consolidated_juicios(self):
+        try:
+            today = datetime.today()
+            date_string = today.strftime('%Y-%m-%d--%H:%M')
+
+            # Create new Excel file
+            new_book = Workbook()
+            new_sheet = new_book.active
+            new_sheet.title = 'Sheet 1'
+
+            # Define column headers
+            headers = ['Ficha de Caracterización', 'Cógigo', 'Denominación', 'Estado de la Ficha de Caracterización', 'Fecha Inicio', 'Fecha Fin', 'Regional', 'Centro de Formación', 'Tipo de Documento', 'Número de Documento', 'Nombre', 'Apellidos', 'Estado', 'Competencia', 'Resultado de Aprendizaje', 'Juicio de Evaluación', 'Funcionario que registro el juicio evaluativo']
+
+            # Write headers in the new file
+            for col in range(len(headers)):
+                new_sheet.cell(row=1, column=col+1, value=headers[col])
+
+            # Define path and name of the consolidated file
+            consolidated_file_path = f'{self.current_root_path}/reporte/Consolidado_Reporte_Juicios_{date_string}.xlsx'
+
+            # Combine all Excel files in the folder
+            file_list = [f for f in os.listdir(self.path_process_folder) if f.startswith('new_')]
+            for filename in file_list:
+                # if filename.startswith('new_') and filename.endswith('.xlsx'):
+                filepath = os.path.join(f'{self.current_root_path}/procesar/', filename)
+                book = load_workbook(filepath)
+                sheet = book.active
+
+                # Write data in the new file
+                for row in range(2, sheet.max_row + 1):
+                    for col in range(1, sheet.max_column + 1):
+                        new_sheet.cell(row=row, column=col, value=sheet.cell(row=row, column=col).value)
+
+            # Save the consolidated file
+            new_book.save(consolidated_file_path)
+            print("SE HA CREADO EL CONSOLIDADO EXITOSAMENTE")
+            return consolidated_file_path
+        except Exception as err:
+            return False
+        
     
 
+    
 
 # BotConsulta = ConsultTrainees()
 # BotConsulta.open_webdriver()
 # BotConsulta.login_process()
 # BotConsulta.select_role()
 # list_fichas = BotConsulta.obtain_fichas_a_descargar()
-# print(list_fichas)
+# # print(list_fichas)
 # final_download_files = BotConsulta.depurate_from_existing_files(list_fichas=list_fichas)
-# BotConsulta.download_files(final_download_files)
+
+# BotConsulta.download_juicios_process(final_download_files)
+# BotConsulta.restructure_for_consolidated_file()
+# BotConsulta.generate_consolidated_juicios()
 # BotConsulta.modified_files()
 # BotConsulta.generate_consolidated_trainees()
 # BotConsulta.keep_driver_open()
