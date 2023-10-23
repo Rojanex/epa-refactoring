@@ -14,6 +14,8 @@ from openpyxl import Workbook, load_workbook
 from selenium.webdriver.chrome.options import Options
 from screeninfo import get_monitors
 from datetime import datetime
+from selenium.common.exceptions import NoSuchElementException
+
 
 load_dotenv()
 
@@ -245,7 +247,11 @@ class ConsultTrainees:
 
                 #check if ficha its correct
                 time.sleep(1)
-                elemento2 = self.driver.find_element(By.XPATH,f'/html/body[1]/div[2]/table/tbody/tr/td/span')
+                try:
+                    elemento2 = self.driver.find_element(By.XPATH,f'/html/body[1]/div[2]/table/tbody/tr/td/span')
+                except NoSuchElementException:
+                    print(f'No se encontraron registros para la ficha ({f}) seleccionada... Por favor verificar')
+                    elemento2 = None
                 if elemento2:
                     print(f'No se encontraron registros para la ficha ({f}) seleccionada... Por favor verificar')
                     return False
@@ -443,8 +449,12 @@ class ConsultTrainees:
                 
                 #check if element id wrong
                 time.sleep(1)
-                elemento = self.driver.find_element(By.XPATH,f'/html/body[1]/div[2]/table/tbody/tr/td/span')
-                if elemento:
+                try:
+                    elemento2 = self.driver.find_element(By.XPATH,f'/html/body[1]/div[2]/table/tbody/tr/td/span')
+                except NoSuchElementException:
+                    print(f'No se encontraron registros para la ficha ({f}) seleccionada... Por favor verificar')
+                    elemento2 = None
+                if elemento2:
                     print(f'No se encontraron registros para la ficha ({f}) seleccionada... Por favor verificar')
                     return False
                 else:
@@ -465,8 +475,8 @@ class ConsultTrainees:
                                 f"{self.current_root_path}/procesar/Reporte de Juicios Evaluativos {f}.xls")
         except Exception as err:
             print('ERROR EN LA DESCARGA FICHAS - INTENTE NUEVAMENTE')
-            # print(err)
-            # print(traceback.format_exc())
+            print(err)
+            print(traceback.format_exc())
             return False
             
 
@@ -596,13 +606,13 @@ class ConsultTrainees:
 # BotConsulta.login_process()
 # BotConsulta.select_role()
 # list_fichas = BotConsulta.obtain_fichas_a_descargar()
-# # print(list_fichas)
+# # # print(list_fichas)
 # final_download_files = BotConsulta.depurate_from_existing_files(list_fichas=list_fichas)
 
 # BotConsulta.download_juicios_process(final_download_files)
 # BotConsulta.restructure_for_consolidated_file()
 # BotConsulta.generate_consolidated_juicios()
-# BotConsulta.modified_files()
-# BotConsulta.generate_consolidated_trainees()
-# BotConsulta.keep_driver_open()
+# # BotConsulta.modified_files()
+# # BotConsulta.generate_consolidated_trainees()
+# # BotConsulta.keep_driver_open()
 

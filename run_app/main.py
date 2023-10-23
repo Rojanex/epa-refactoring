@@ -281,16 +281,19 @@ class App(customtkinter.CTk):
                 response_login = BotConsulta.login_process(user=usuario, password=contrasena)
                 BotConsulta.select_role()
                 list_fichas = BotConsulta.obtain_fichas_a_descargar(document_name=self.filename)
-                if list_fichas ==False:
+                if list_fichas == False:
                     pass
                 else:
                     final_download_files = BotConsulta.depurate_from_existing_files(list_fichas=list_fichas)
-                    BotConsulta.download_files(final_download_files)
-                    BotConsulta.modified_files()
-                    self.path_consolidated = BotConsulta.generate_consolidated_trainees()
-                    if self.path_consolidated != False:
-                        BotConsulta.delete_all_files_in_procesar_and_entrada(self.path_consolidated)
-                        self.select_frame_by_name("file")
+                    response_download = BotConsulta.download_files(final_download_files)
+                    if  response_download == False:
+                        messagebox.showinfo('Error en la ficha', 'Una de las fichas ingresadas no se encuentra, verifique e intente de nuevo')
+                    else:
+                        BotConsulta.modified_files()
+                        self.path_consolidated = BotConsulta.generate_consolidated_trainees()
+                        if self.path_consolidated != False or list_fichas != False:
+                            BotConsulta.delete_all_files_in_procesar_and_entrada(self.path_consolidated)
+                            self.select_frame_by_name("file")
         finally:
             sys.stdout = old_stdout
             sys.stderr = old_stderr
@@ -322,15 +325,20 @@ class App(customtkinter.CTk):
                 BotConsulta.select_role()
                 list_fichas = BotConsulta.obtain_fichas_a_descargar(document_name=self.filename)
                 if list_fichas ==False:
+                    
                     pass
                 else:
                     final_download_files = BotConsulta.depurate_from_existing_files(list_fichas=list_fichas)
-                    BotConsulta.download_juicios_process(final_download_files)
-                    BotConsulta.restructure_for_consolidated_file()
-                    self.path_consolidated = BotConsulta.generate_consolidated_juicios()
-                    if self.path_consolidated != False:
-                        BotConsulta.delete_all_files_in_procesar_and_entrada(self.path_consolidated)
-                        self.select_frame_by_name("file")
+                    response_download =BotConsulta.download_juicios_process(final_download_files)
+                    if  response_download == False:
+                        messagebox.showinfo('Error en la ficha', 'Una de las fichas ingresadas no se encuentra, verifique e intente de nuevo')
+                        pass
+                    else:
+                        BotConsulta.restructure_for_consolidated_file()
+                        self.path_consolidated = BotConsulta.generate_consolidated_juicios()
+                        if self.path_consolidated != False:
+                            BotConsulta.delete_all_files_in_procesar_and_entrada(self.path_consolidated)
+                            self.select_frame_by_name("file")
         finally:
             sys.stdout = old_stdout
             sys.stderr = old_stderr
